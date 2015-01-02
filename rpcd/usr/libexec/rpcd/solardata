@@ -6,8 +6,8 @@ case "$1" in
 	;;
 	call)
 		echo '{'
-		alfred -r 160 | sed -e 's/^{ \(".*"\), \(".*"\) },$/\1: \2,/g; s/\\x/\\u00/g; $s/,$//'
-		#cat /root/solardata.json | sed -e 's/^{ \(".*"\), \(".*"\) },$/\1: \2,/g; s/\\x/\\u00/g; $s/,$//'
+		#alfred -r 160 | sed -e 's/^{ \(".*"\), \(".*"\) },$/\1: \2,/g; s/\\x/\\u00/g; $s/,$//'
+		cat /root/solardata.json | sed -e 's/^{ \(".*"\), \(".*"\) },$/\1: \2,/g; s/\\x/\\u00/g; $s/,$//'
 		echo '}'
 	;;
 esac

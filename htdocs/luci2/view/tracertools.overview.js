@@ -2,7 +2,35 @@ L.ui.view.extend({
 	title: L.tr('TracerTools'),
 	refresh: 5000,
 
+	getSolarData: L.rpc.declare({
+		object: 'solardata',
+		method: 'solardata'
+	}),
+	
+	parseSolarData: function(solardata){
+		var data = {
+			modules: [{
+				mac: "82:94:71:7e:ff:e1",
+				name: "solar21",
+				datetime: "Mon Dec 29 00:24:51 CET 2014",
+				bat_volt: "12.80",
+				bat_volt_min: "10.88",
+				bat_volt_max: "14.83",
+				in1_volt: "0.14",
+				in1_amp: "0.00",
+				in2_amp: "0.16",
+				temp1: "0",
+				chg_state: "1",
+				charging: "0",
+				load_switch: "0"
+			}]
+		};
+		return data;
+	},
+	
 	execute: function() {
+		var self = this;
+		
 		var dummy = {
 				"modules": [{
 					mac: "??????????",
@@ -74,28 +102,9 @@ L.ui.view.extend({
 		gauge.set(100); // set actual value
 		
 		function update() {
-			//$.getJSON('http://freifunk.info-screen.net/tracertools-webui/api/solarfred.json.php', function(data) {
-			//$.getJSON('http://vpn8.leipzig.freifunk.net/solarfestival/solarfredjson.txt', function(data) {
-			(function() { 
+			self.getSolarData().then(function(solardata){ 
+				var data = self.parseSolarData(solardata);
 				console.log(data);
-				
-				data = {
-					modules: [{
-						mac: "82:94:71:7e:ff:e1",
-						name: "solar21",
-						datetime: "Mon Dec 29 00:24:51 CET 2014",
-						bat_volt: "12.80",
-						bat_volt_min: "10.88",
-						bat_volt_max: "14.83",
-						in1_volt: "0.14",
-						in1_amp: "0.00",
-						in2_amp: "0.16",
-						temp1: "0",
-						chg_state: "1",
-						charging: "0",
-						load_switch: "0"
-					}]
-				};
 				
 				$('#solarselect').empty();
 				$.each(data.modules, function(index, module) {
@@ -142,7 +151,7 @@ L.ui.view.extend({
 				gauge.animationSpeed = 5;
 				gauge.set(100-ampDiffPercent); // set actual value
 				$('#cf-gauge-value').text(ampDiffPercent.toFixed(2) + "%");
-			})();
+			});
 		}
 		
 		update();
