@@ -9,22 +9,41 @@ L.ui.view.extend({
 	
 	parseSolarData: function(solardata){
 		var data = {
-			modules: [{
-				mac: "82:94:71:7e:ff:e1",
-				name: "solar21",
-				datetime: "Mon Dec 29 00:24:51 CET 2014",
-				bat_volt: "12.80",
-				bat_volt_min: "10.88",
-				bat_volt_max: "14.83",
-				in1_volt: "0.14",
-				in1_amp: "0.00",
-				in2_amp: "0.16",
-				temp1: "0",
-				chg_state: "1",
-				charging: "0",
-				load_switch: "0"
-			}]
+			modules: []
 		};
+		for (var key in solardata) {
+			var obj = solardata[key];
+			var values = obj.split(', ');
+			
+			var name = values[0].replace(/'/g, '') || null;
+			var datetime = values[1].replace(/'/g, '') || null;
+			var bat_volt = values[2] || null;
+			var in1_volt = values[3] || null;
+			var in1_amp = values[4] || null;
+			var in2_amp = values[5] || null;
+			var bat_volt_min = values[6] || null;
+			var bat_volt_max = values[7] || null;
+			var temp1 = values[8] || null;
+			var chg_state = values[9] || null;
+			var charging = values[10] || null;
+			var load_switch = values[11] || null;
+			
+			data.modules.push({
+				mac: (key || null),
+				name:  name,
+				datetime: datetime,
+				bat_volt: bat_volt,
+				bat_volt_min: bat_volt_min,
+				bat_volt_max: bat_volt_max,
+				in1_volt: in1_volt,
+				in1_amp: in1_amp,
+				in2_amp: in2_amp,
+				temp1: temp1,
+				chg_state: chg_state,
+				charging: charging,
+				load_switch: load_switch
+			});
+		}
 		return data;
 	},
 	
@@ -101,56 +120,63 @@ L.ui.view.extend({
 		gauge.animationSpeed = 1; // set animation speed (32 is default value)
 		gauge.set(100); // set actual value
 		
+		function updateUi(module) {
+			module.bat_volt = parseFloat(module.bat_volt);
+			module.bat_volt_min = parseFloat(module.bat_volt_min);
+			module.bat_volt_max = parseFloat(module.bat_volt_max);
+			module.in1_volt = parseFloat(module.in1_volt);
+			module.in1_amp = parseFloat(module.in1_amp);
+			module.in2_amp = parseFloat(module.in2_amp);
+			module.temp1 = parseFloat(module.temp1);
+			
+			var $valuelist = $('.valuelist');
+			$valuelist.find('.in1_volt').text(module.in1_volt + " V");
+			$valuelist.find('.in_power').text((module.in1_volt * (module.in1_amp-module.in2_amp)).toFixed(2) + " W");
+			$valuelist.find('.temp1').html(module.temp1 + " &deg;C");
+			$valuelist.find('.alarms').text("no");
+			var date = moment(module.datetime.replace('CET ', '').substr(4), "MMMM D h:m:s GGGG");
+			$valuelist.find('.date').text(date.format("DD.MM.YY"));
+			$valuelist.find('.time').text(date.format("HH:mm:ss"));
+			
+			$('.value.in1_amp').text('+' + module.in1_amp.toFixed(2));
+			$('.value.in2_amp').text('-' + module.in2_amp.toFixed(2));
+			
+			bat_volt.refresh(
+					module.bat_volt.toFixed(2)
+			);
+			in1_amp.refresh(
+					module.in1_amp.toFixed(2)
+			);
+			
+			var ampDiffPercent = null;
+			if (module.in1_amp >= module.in2_amp) {
+				ampDiffPercent = 100 - 100 * (module.in2_amp/module.in1_amp);
+				//$('#cf-gauge-value').removeClass('red').addClass('green');
+			} else {
+				ampDiffPercent =  - 100 + 100 * (module.in1_amp/module.in2_amp);
+				//$('#cf-gauge-value').removeClass('green').addClass('red');
+			}
+			gauge.animationSpeed = 5;
+			gauge.set(100-ampDiffPercent); // set actual value
+			$('#cf-gauge-value').text(ampDiffPercent.toFixed(2) + "%");
+		}
+		
 		function update() {
 			self.getSolarData().then(function(solardata){ 
-				var data = self.parseSolarData(solardata);
-				console.log(data);
-				
-				$('#solarselect').empty();
-				$.each(data.modules, function(index, module) {
-					$('#solarselect').append($('<option>' + module.name + '</option>'));
+				var modules = self.parseSolarData(solardata).modules;
+
+				var $moduleSelect = $('#solarselect');
+				$moduleSelect.empty();
+				$.each(modules, function(index, module) {
+					$moduleSelect.append($('<option>' + module.name + '</option>'));
+				});
+				$moduleSelect.on('change', function(e) {
+					var index = e.currentTarget.selectedIndex;
+					console.log("INDEX: ", index)
+					updateUi(modules[index]);
 				});
 				
-				var module = data.modules[0];
-				
-				module.bat_volt = parseFloat(module.bat_volt);
-				module.bat_volt_min = parseFloat(module.bat_volt_min);
-				module.bat_volt_max = parseFloat(module.bat_volt_max);
-				module.in1_volt = parseFloat(module.in1_volt);
-				module.in1_amp = parseFloat(module.in1_amp);
-				module.in2_amp = parseFloat(module.in2_amp);
-				module.temp1 = parseFloat(module.temp1);
-				
-				var $valuelist = $('.valuelist');
-				$valuelist.find('.in1_volt').text(module.in1_volt + " V");
-				$valuelist.find('.in_power').text((module.in1_volt * (module.in1_amp-module.in2_amp)).toFixed(2) + " W");
-				$valuelist.find('.temp1').html(module.temp1 + " &deg;C");
-				$valuelist.find('.alarms').text("no");
-				var date = moment(module.datetime.replace('CET ', '').substr(4), "MMMM D h:m:s GGGG");
-				$valuelist.find('.date').text(date.format("DD.MM.YY"));
-				$valuelist.find('.time').text(date.format("HH:mm:ss"));
-				
-				$('.value.in1_amp').text('+' + module.in1_amp.toFixed(2));
-				$('.value.in2_amp').text('-' + module.in2_amp.toFixed(2));
-				
-				bat_volt.refresh(
-						module.bat_volt.toFixed(2)
-				);
-				in1_amp.refresh(
-						module.in1_amp.toFixed(2)
-				);
-				
-				var ampDiffPercent = null;
-				if (module.in1_amp >= module.in2_amp) {
-					ampDiffPercent = 100 - 100 * (module.in2_amp/module.in1_amp);
-					//$('#cf-gauge-value').removeClass('red').addClass('green');
-				} else {
-					ampDiffPercent =  - 100 + 100 * (module.in1_amp/module.in2_amp);
-					//$('#cf-gauge-value').removeClass('green').addClass('red');
-				}
-				gauge.animationSpeed = 5;
-				gauge.set(100-ampDiffPercent); // set actual value
-				$('#cf-gauge-value').text(ampDiffPercent.toFixed(2) + "%");
+				updateUi(modules[0]);
 			});
 		}
 		
